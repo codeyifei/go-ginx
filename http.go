@@ -1,12 +1,17 @@
 package ginx
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 
 	"github.com/creasty/defaults"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+)
+
+const (
+	logFormatter = "[GINXdebug] func(*gin.Context, *%s) (*%s, error)\n"
 )
 
 type HandlerFunc[Req any, Resp any] func(c *gin.Context, req *Req) (resp *Resp, err error)
@@ -44,6 +49,7 @@ func adapter[Req any, Resp any](handlerFunc HandlerFunc[Req, Resp], types Bindin
 func Handle[Req any, Resp any](r gin.IRouter, handlerFunc HandlerFunc[Req, Resp]) {
 	var req Req
 	metaData := requestMeta(req)
+	log[Req, Resp]()
 	r.Handle(metaData.Method, metaData.Path, adapter(handlerFunc, metaData.BindingTypes))
 }
 
@@ -81,6 +87,17 @@ func Group(r gin.IRouter, groupName string, fn func(gin.IRouter)) {
 
 func handle[Req any, Resp any](r gin.IRouter, method, path string, handlerFunc HandlerFunc[Req, Resp]) {
 	var req Req
+	log[Req, Resp]()
 	rt := reflect.TypeOf(req)
 	r.Handle(method, path, adapter(handlerFunc, requestBindingTypesMeta(rt)))
+}
+
+func log[Req, Resp any]() {
+	if gin.IsDebugging() {
+		var (
+			req  Req
+			resp Resp
+		)
+		fmt.Printf(logFormatter, reflect.TypeOf(req), reflect.TypeOf(resp))
+	}
 }
